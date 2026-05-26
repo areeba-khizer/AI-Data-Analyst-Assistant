@@ -1,31 +1,59 @@
 import streamlit as st
 import pandas as pd
+import os
+from dotenv import load_dotenv
+from google import genai
 
-st.set_page_config(
-    page_title="InsightGPT",
-    page_icon="📊",
-    layout="wide"
-)
+load_dotenv()
 
-st.title("📊 InsightGPT – AI Data Analyst Assistant")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-st.write("Upload a CSV file and start analyzing your data with AI.")
+st.set_page_config(page_title="InsightGPT", layout="wide")
 
-uploaded_file = st.file_uploader(
-    "Upload your CSV file",
-    type=["csv"]
-)
+st.title("📊 InsightGPT – AI Data Analyst (Gemini Powered)")
 
-if uploaded_file is not None:
+uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+
+if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    st.subheader("Dataset Information")
+    st.subheader("Ask Questions About Your Data")
 
-    col1, col2, col3 = st.columns(3)
+    question = st.text_input("Type your question here")
 
-    col1.metric("Rows", df.shape[0])
-    col2.metric("Columns", df.shape[1])
-    col3.metric("Missing Values", df.isnull().sum().sum())
+    def get_ai_response(question, df):
+        data_sample = df.head(25).to_csv(index=False)
+
+        prompt = f"""
+You are a senior data analyst AI.
+
+You are given a dataset sample:
+
+{data_sample}
+
+User question:
+{question}
+
+Instructions:
+- Give clear insights
+- Use reasoning like a data analyst
+- If needed, suggest calculations or trends
+- Be concise but insightful
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        return response.text
+
+    if question:
+        with st.spinner("Analyzing with Gemini..."):
+            answer = get_ai_response(question, df)
+
+        st.subheader("AI Response")
+        st.write(answer)
